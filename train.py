@@ -10,7 +10,7 @@ import mlflow
 import mlflow.sklearn
 
 # Load the dataset
-file_path = r"C:\Users\lavan.kumar\Downloads\testing model\train_u6lujuX_CVtuZ9i (1).csv"
+file_path = "train_u6lujuX_CVtuZ9i (1).csv"
 loan_data = pd.read_csv(file_path)
 
 # Step 1: Data Preprocessing
