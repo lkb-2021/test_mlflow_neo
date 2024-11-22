@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +9,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, ConfusionMatrixDisplay
 import mlflow
 import mlflow.sklearn
+
+# Dynamically set MLflow Tracking URI based on environment
+if os.getenv("GITHUB_ACTIONS"):
+    # Use in-memory tracking URI for GitHub Actions
+    mlflow.set_tracking_uri("file:///tmp/mlruns")
+else:
+    # Use local MLflow Tracking Server for local runs
+    mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
 # Load the dataset
 file_path = "train_u6lujuX_CVtuZ9i (1).csv"
@@ -33,51 +42,44 @@ scaler = StandardScaler()
 loan_data[['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount']] = scaler.fit_transform(
     loan_data[['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount']])
 
-# Split the data into features (X) and target (y)
+# Step 2: Split the data into features (X) and target (y)
 X = loan_data.drop(columns=['Loan_ID', 'Loan_Status'])
 y = loan_data['Loan_Status']
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Start MLflow experiment
+# Step 3: Train and Evaluate the Model
 mlflow.set_experiment("Loan Approval Prediction")
 
 with mlflow.start_run():
-    # Step 4: Model Training
+    # Train the Logistic Regression model
     logistic_model = LogisticRegression(random_state=42, max_iter=1000)
     logistic_model.fit(X_train, y_train)
 
-    # Step 5: Model Prediction
+    # Make predictions
     y_pred = logistic_model.predict(X_test)
 
-    # Step 6: Model Evaluation
+    # Evaluate the model
     accuracy = accuracy_score(y_test, y_pred)
     conf_matrix = confusion_matrix(y_test, y_pred)
     class_report = classification_report(y_test, y_pred)
 
-    # Log parameters
+    # Log parameters, metrics, and artifacts to MLflow
     mlflow.log_param("random_state", 42)
     mlflow.log_param("max_iter", 1000)
-
-    # Log metrics
     mlflow.log_metric("accuracy", accuracy)
 
-    # Log the model
+    # Log the trained model
     mlflow.sklearn.log_model(logistic_model, "model")
 
-    # Display results
-    print("Accuracy:", accuracy)
-    print("Confusion Matrix:\n", conf_matrix)
-    print("Classification Report:\n", class_report)
-
-    # Log Confusion Matrix as an artifact
+    # Save and log the confusion matrix plot
     disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=logistic_model.classes_)
     disp.plot(cmap=plt.cm.Blues)
     plt.title("Confusion Matrix")
     plt.savefig("confusion_matrix.png")
     mlflow.log_artifact("confusion_matrix.png")
 
-    # Feature Importance
+    # Feature importance
     feature_importance = pd.Series(logistic_model.coef_[0], index=X.columns).sort_values(ascending=False)
     plt.figure(figsize=(10, 6))
     feature_importance.plot(kind='bar', color='skyblue')
@@ -86,3 +88,8 @@ with mlflow.start_run():
     plt.ylabel("Coefficient Values")
     plt.savefig("feature_importance.png")
     mlflow.log_artifact("feature_importance.png")
+
+# Print evaluation results
+print("Accuracy:", accuracy)
+print("Confusion Matrix:\n", conf_matrix)
+print("Classification Report:\n", class_report)
